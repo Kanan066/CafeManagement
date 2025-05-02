@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+        <!-- header -->
+        <header class="py-5">
+            <div class="container px-4 px-lg-5 my-5">
+                <div class="text-center " style="color:  #E85A4F;;">
+                    <h1 class="display-4 fw-bolder">Menu</h1>
+                    <p class="lead fw-normal mb-0" style="color: #E98074;">Can’t decide? Everything’s worth a try</p>
+                </div>
+            </div>
+        </header>
+        <!-- Section-->
+        <section class="py-5" style="margin-top: -120px;">
+            <div class="container px-4 px-lg-5 mt-5">
+                <div class="row gx-4 gx-lg-5 row-cols-2 row-cols-md-3 row-cols-xl-4 justify-content-center">
+                    {% for product in products %}
+                        {% if product.is_sale == True %}
+                    <div class="col mb-5">
+                        <div class="card h-100">
+                            <!-- sales badge -->
+                            <div class = "badge bg-dark text-white position-absolute" style="top:0.5rem;right: 0.5rem;">Sale</div>
+                            <!-- Product image-->
+                            <img class="card-img-top" src="{{ product.image.url }}" height="250px" alt="..."/>
+                            <!-- Product details-->
+                            <div class="card-body p-4">
+                                <div class="text-center">
+                                    <!-- Product name-->
+                                    <h5 class="fw-bolder">{{product.name}}</h5>
+                                    <!-- Product price-->
+                                    <strike>₹{{product.price}}</strike>&nbsp;₹{{product.sale_price}}<br>
+                                    {{product.description}}
+                                    <center>
+                                        <div style="display: flex; margin-right: -70px;margin-top: 10px;">
+                                        <div class="col-md-4" style="margin-left: 5px; ">Quantity:</div>
+                                    <div class="col-md-4">
+                                <select class="form-select form-select-sm" id="qty-cart">
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                    <option value="5">5</option>
+                                </select>
+                                </div>
+                                </div></div></center>
+                            </div>
+                            <!-- Product actions-->
+                            <div class="card-footer p-4 pt-0 border-top-0 bg-transparent">
+                                <div class="text-center">
+                                    <button class="btn btn-outline-dark mt-auto addcart" type="button" value="{{ product.id }}"  >Add to Cart</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="col mb-5">
+                        <div class="card h-100">
+                            <!-- Product image-->
+                            <img class="card-img-top" src="{{ product.image.url }}" height="250px" alt="..." />
+                            <!-- Product details-->
+                            <div class="card-body p-4">
+                                <div class="text-center">
+                                    <!-- Product name-->
+                                    <h5 class="fw-bolder">{{product.name}}</h5>
+                                    <!-- Product price-->
+                                    ₹{{product.price}}<br>
+                                    {{product.description}}
+                                    <center>
+                                        <div style="display: flex; margin-right: -70px;margin-top: 10px;">
+                                        <div class="col-md-4" style="margin-left: 5px; ">Quantity:</div>
+                                    <div class="col-md-4">
+                                <select class="form-select form-select-sm" id="qty-cart">
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                    <option value="5">5</option>
+                                </select>
+                                </div>
+                                </div></div></center>
+                            </div>
+                            <!-- Product actions-->
+                            <div class="card-footer p-4 pt-0 border-top-0 bg-transparent">
+                                <div class="text-center">
+                                    <button class="btn btn-outline-dark mt-auto addcart" type="button" value="{{ product.id }}" >Add to Cart</button>
+                                </div>
+                            </div>                            
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+    </div>
+    </section>
+    <script>
+        $(document).on('click', '.addcart', function(e){
+            e.preventDefault();
+            $.ajax({
+                type: 'POST',
+                url: '{% url "cart_add" %}',
+                data: {
+                    product_id: $(this).val(),
+                    product_qty: $('#qty-cart option:selected').text(),
+                    csrfmiddlewaretoken: '{{ csrf_token }}',
+                    action: 'post'
+                },
+                success: function(json){
+                    // console.log(json)
+                    document.getElementById("cart_quantity").textContent=json.qty
+                },
+                error: function(xhr, errmsg, err){
+                }
+            });
+        })
+    </script>
+
+{% endblock %}
