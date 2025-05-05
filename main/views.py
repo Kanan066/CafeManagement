@@ -2,12 +2,78 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
-from .models import Product, Category, Profile
-from django import forms
+from .models import Product, Category, Profile, review  # Ensure `Review` model is imported
+from django.http import HttpResponse
 import json
-from cart.cart import Cart
-from django.core.exceptions import ObjectDoesNotExist
+import razorpay
+from django.conf import settings
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
 
+@csrf_exempt
+def create_payment(request):
+    if request.method == "POST":
+        amount = int(request.POST.get("amount")) * 100  # Convert to paisa
+        client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+        payment = client.order.create({'amount': amount, 'currency': 'INR', 'payment_capture': '1'})
+        return JsonResponse(payment)
+
+from cart.cart import Cart
+from django.shortcuts import get_object_or_404
+from django.shortcuts import render
+def product_list(request):
+    query = request.GET.get('q', '')
+    products = Product.objects.filter(name__icontains=query)
+    return render(request, 'product_list.html', {
+        'products': products,
+        'query': query
+    })
+
+def payment_page(request):
+    return render(request, 'payment.html')
+
+def delete_review(request, review_id):
+    obj = get_object_or_404(review, id=review_id)
+    if request.method == "POST":
+        obj.delete()
+        return redirect('reviewpage')  # Use your review page's URL name
+    return redirect('reviewpage')
+def submit_review(request):
+    if request.method == 'POST':
+        # Get the review form data
+        name = request.POST.get('name')
+        review_text = request.POST.get('review')
+        rating = request.POST.get('rating')
+
+        # Save the review to the database
+        new_review = review(name=name, review_text=review_text, rating=rating)
+        new_review.save()
+
+        # Redirect to a thank-you page or back to the reviews
+        return redirect('thank_you')  # Make sure 'thank_you' is a valid URL name
+
+    return redirect('reviewpage')  # This should match the name in your urls.py
+
+def thank_you(request):
+    return render(request, 'thank_you.html')
+
+def reviewpage(request):
+    if request.method == 'POST':
+        # Handle review submission
+        name = request.POST.get('name')
+        review_text = request.POST.get('review')
+        rating = request.POST.get('rating')
+
+        # Save review to database
+        new_review = review(name=name, review_text=review_text, rating=rating)
+        new_review.save()
+
+        return redirect('thank_you')  # Redirect to a thank you page or confirmation
+        
+    reviews = review.objects.all()  # Fetch all reviews from the database
+    return render(request, 'review.html', {'reviews': reviews})  # Pass reviews to template
+
+# Other views (e.g., for user profiles, categories, etc.)
 def update_info(request):
     if request.user.is_authenticated:
         try:
@@ -42,20 +108,19 @@ def update_info(request):
         messages.error(request, "You must be logged in")
         return redirect('home')
 
-
+# Other views like category, menu, faqs, etc.
 def category(request, food):
-    #grab the category from the url
     try:
         category = Category.objects.get(name=food)
         products = Product.objects.filter(category=category)
-        return render(request, 'category.html',{'products':products, 'category':category} )
-    except:
-        messages.success(request, ("The category does.nt exist."))
+        return render(request, 'category.html', {'products': products, 'category': category})
+    except Category.DoesNotExist:
+        messages.success(request, "The category doesn't exist.")
         return redirect('menu')
 
 def menu(request):
     products = Product.objects.all()
-    return render(request, 'menu.html', {'products':products})
+    return render(request, 'menu.html', {'products': products})
 
 def home(request):
     return render(request, 'home.html', {})
@@ -70,7 +135,7 @@ def logout_view(request):
     if request.user.is_authenticated:
         cart = Cart(request)
 
-        # ✅ Prevent crash by always ensuring Profile exists
+        # Ensure Profile exists
         profile, created = Profile.objects.get_or_create(user=request.user)
 
         # Save the cart to Profile
@@ -98,10 +163,10 @@ def login_page(request):
 
         login(request, user)
 
-        # ✅ Ensure Profile always exists
+        # Ensure Profile exists
         profile, created = Profile.objects.get_or_create(user=user)
 
-        # 🛒 Restore cart from saved data
+        # Restore cart from saved data
         saved_cart = profile.old_cart
         if saved_cart:
             converted_cart = json.loads(saved_cart)
@@ -112,7 +177,6 @@ def login_page(request):
         return redirect('/home/')
 
     return redirect('/home/')
-
 
 def register_user(request):
     if request.method == 'POST':
@@ -133,12 +197,12 @@ def register_user(request):
             last_name=last_name,
         )
 
-        # ✅ Ensure Profile is created only if it doesn't exist
+        # Ensure Profile is created if it doesn't exist
         if not Profile.objects.filter(user=user).exists():
             Profile.objects.create(user=user, old_cart=json.dumps({}))
 
         # Auto login
         login(request, user)
         return redirect('/')
-        
+
     return render(request, 'register.html')

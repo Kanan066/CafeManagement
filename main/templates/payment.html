@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Pay Now</title>
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+</head>
+<body>
+  <h2>Enter Amount to Pay</h2>
+  <input type="number" id="amount" placeholder="Amount in INR" />
+  <button id="pay-button">Pay Now</button>
+
+  <script>
+    document.getElementById("pay-button").onclick = async function () {
+      const amount = document.getElementById("amount").value;
+      if (!amount || amount < 1) return alert("Enter valid amount");
+
+      const response = await fetch("/create-payment/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: `amount=${amount}`
+      });
+
+      const data = await response.json();
+
+      const options = {
+        key: "YOUR_RAZORPAY_KEY_ID", // Replace with your Razorpay public key
+        amount: data.amount,
+        currency: data.currency,
+        order_id: data.id,
+        name: "Café Payment",
+        description: "Order Payment",
+        handler: function (response) {
+          alert("Payment successful!");
+        },
+        theme: { color: "#F37254" }
+      };
+
+      const rzp = new Razorpay(options);
+      rzp.open();
+    };
+  </script>
+</body>
+</html>
